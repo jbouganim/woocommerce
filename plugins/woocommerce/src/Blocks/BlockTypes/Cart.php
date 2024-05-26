@@ -250,9 +250,11 @@ class Cart extends AbstractBlock {
 		$this->asset_data_registry->add( 'localPickupEnabled', $pickup_location_settings['enabled'] );
 
 		// Hydrate the following data depending on admin or frontend context.
-		if ( ! is_admin() && ! WC()->is_rest_api_request() ) {
+		// 86co start - added a filter here.
+		if ( ! is_admin() && ! WC()->is_rest_api_request() && apply_filters( 'woocommerce_blocks_cart_hydrate_api_request', true ) ) {
 			$this->asset_data_registry->hydrate_api_request( '/wc/store/v1/cart' );
 		}
+		// 86co end
 
 		/**
 		 * Fires after cart block data is registered.

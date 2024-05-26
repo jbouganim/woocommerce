@@ -27,7 +27,7 @@ pnpm --filter='@woocommerce/plugin-woocommerce' build || exit "$?"
 echo "Cleaning up PHP dependencies..."
 composer install --no-dev || exit "$?"
 echo "Run makepot..."
-pnpm --filter=@woocommerce/plugin-woocommerce makepot || exit "$?"
+#pnpm --filter=@woocommerce/plugin-woocommerce makepot || exit "$?"
 echo "Syncing files..."
 rsync -rc --exclude-from="$PROJECT_PATH/.distignore" "$PROJECT_PATH/" "$DEST_PATH/" --delete --delete-excluded
 

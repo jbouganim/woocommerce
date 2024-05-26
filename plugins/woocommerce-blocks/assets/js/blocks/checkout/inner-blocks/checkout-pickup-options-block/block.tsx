@@ -164,13 +164,19 @@ const Block = (): JSX.Element | null => {
 		renderPickupLocation,
 	};
 
+	// 86co start
+	// 86inc / 86co - We are commenting this out, we don't want to auto-select the first option, instead we want to show the user the options and let them choose.
+	// If we select it for them and the store is out of stock, it will keep throwing them back to free shipping without letting them select a different option.
+
 	// Update the selected option if there is no rate selected on mount.
-	useEffect( () => {
-		if ( ! selectedOption && pickupLocations[ 0 ] ) {
-			setSelectedOption( pickupLocations[ 0 ].rate_id );
-			onSelectRate( pickupLocations[ 0 ].rate_id );
-		}
-	}, [ onSelectRate, pickupLocations, selectedOption ] );
+	// useEffect( () => {
+	// 	if ( ! selectedOption && pickupLocations[ 0 ] ) {
+	// 		setSelectedOption( pickupLocations[ 0 ].rate_id );
+	// 		onSelectRate( pickupLocations[ 0 ].rate_id );
+	// 	}
+	// }, [ onSelectRate, pickupLocations, selectedOption ] );
+
+	// 86co end
 	const packageCount = getShippingRatesPackageCount( shippingRates );
 	return (
 		<>
