@@ -168,13 +168,21 @@ const Block = (): JSX.Element | null => {
 		renderPickupLocation,
 	};
 
-	// Update the selected option if there is no rate selected on mount.
+	// @86co edit - this is from v.9.3.0-dev, hopefull this will be fixed in the next release.
 	useEffect( () => {
-		if ( ! selectedOption && pickupLocations[ 0 ] ) {
+		if (
+			! selectedOption &&
+			pickupLocations[ 0 ] &&
+			selectedOption !== pickupLocations[ 0 ].rate_id
+		) {
 			setSelectedOption( pickupLocations[ 0 ].rate_id );
 			onSelectRate( pickupLocations[ 0 ].rate_id );
 		}
-	}, [ onSelectRate, pickupLocations, selectedOption ] );
+		// Removing onSelectRate as it lead to an infinite loop when only one pickup location is available.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ pickupLocations, selectedOption ] );
+
+
 	const packageCount = getShippingRatesPackageCount( shippingRates );
 	return (
 		<>
