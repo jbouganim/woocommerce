@@ -429,6 +429,10 @@ class MiniCart extends AbstractBlock {
 			$show_product_count = $cart && $cart->get_cart_contents_count() > 0;
 		}
 
+		// 86co start
+		$icon = apply_filters('woocommerce_mini_cart_icon', $icon, $icon_color );
+		// 86co end
+
 		$button_html = $this->get_cart_price_markup( $attributes ) . '
 		<span class="wc-block-mini-cart__quantity-badge">
 			' . $icon . '

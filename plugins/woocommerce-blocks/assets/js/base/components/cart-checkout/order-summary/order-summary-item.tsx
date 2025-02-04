@@ -138,6 +138,12 @@ const OrderSummaryItem = ( {
 				fullDescription,
 		  };
 
+	// 86co start
+	// 86inc 86co lumise data photo
+	const customImages = extensions?.lumise_data?.screenshots || [];
+	const firstImage = customImages.length ? customImages[0] : images[0];
+	// 86co end
+
 	return (
 		<div
 			className={ clsx(
@@ -161,10 +167,12 @@ const OrderSummaryItem = ( {
 						) }
 					/>
 				</div>
+				{ /* 86co start */ }
 				<ProductImage
-					image={ images.length ? images[ 0 ] : {} }
+					image={ firstImage }
 					fallbackAlt={ name }
 				/>
+				{ /* 86co end */ }
 			</div>
 			<div className="wc-block-components-order-summary-item__description">
 				<ProductName
