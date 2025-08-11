@@ -28,6 +28,7 @@ import { getSetting } from '@woocommerce/settings';
  */
 import ProductBackorderBadge from '../product-backorder-badge';
 import ProductImage from '../product-image';
+import ProductImages from '../product-images';
 import ProductLowStockBadge from '../product-low-stock-badge';
 import ProductMetadata from '../product-metadata';
 import ProductSaleBadge from '../product-sale-badge';
@@ -158,13 +159,21 @@ const CartLineItemRow: React.ForwardRefExoticComponent<
 			precision: totalsCurrency.minorUnit,
 		} );
 
-		const firstImage = images.length ? images[ 0 ] : {};
+		// 86co start and co edit for lumise images, could perhaps filter these with the api?
+		const customImages = extensions?.lumise_data?.screenshots || [];
+		const hasLumise = extensions?.lumise_data?.edit_link;
+
+		const itemImages = customImages.length
+			? customImages.slice( 0, 4 )
+			: images.slice( 0, 1 );
+		const firstImage = customImages.length ? images[ 0 ] : {};
+
 		const isProductHiddenFromCatalog =
 			catalogVisibility === 'hidden' || catalogVisibility === 'search';
 
 		const cartItemClassNameFilter = applyCheckoutFilter( {
 			filterName: 'cartItemClass',
-			defaultValue: '',
+			defaultValue: hasLumise ? 'lumise-product' : '',
 			extensions,
 			arg,
 		} );
@@ -221,26 +230,12 @@ const CartLineItemRow: React.ForwardRefExoticComponent<
 					}
 				>
 					{ /* We don't need to make it focusable, because product name has the same link. */ }
-					{ isProductHiddenFromCatalog ? (
-						<ProductImage
-							image={ firstImage }
-							fallbackAlt={ name }
-						/>
-					) : (
-						<a href={ permalink } tabIndex={ -1 }>
-							<ProductImage
-								image={ firstImage }
-								fallbackAlt={ name }
-							/>
-						</a>
-					) }
+					<ProductImages images={ itemImages } />
 				</td>
 				<td className="wc-block-cart-item__product">
 					<div className="wc-block-cart-item__wrap">
 						<ProductName
-							disabled={
-								isPendingDelete || isProductHiddenFromCatalog
-							}
+							disabled={ isPendingDelete }
 							name={ name }
 							permalink={ permalink }
 						/>
@@ -284,6 +279,22 @@ const CartLineItemRow: React.ForwardRefExoticComponent<
 							itemData={ itemData }
 							variation={ variation }
 						/>
+
+						{ /* 86co start */ }
+						{ hasLumise && (
+							<div className="edit-design">
+								<a href={ hasLumise }>
+									<span className="icon-class icon-pencil"></span>
+									<span>
+										{ __(
+											'Edit Design & Quantity',
+											'woo-gutenberg-products-block'
+										) }
+									</span>
+								</a>
+							</div>
+						) }
+						{ /* 86co end */ }
 
 						<div className="wc-block-cart-item__quantity">
 							{ ! soldIndividually && (

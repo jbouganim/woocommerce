@@ -155,7 +155,7 @@ const Block = () => {
 	>(
 		() =>
 			pickupLocations.find( ( rate ) => rate.selected )?.rate_id ??
-			pickupLocations[ 0 ]?.rate_id
+			undefined
 	);
 
 	const handleShippingRateChange = useCallback(
