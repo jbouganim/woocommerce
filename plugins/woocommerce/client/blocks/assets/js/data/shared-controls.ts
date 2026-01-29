@@ -61,6 +61,26 @@ const processHeadersOnFetch = ( headers: Headers ): void => {
 			'The monkey patched function on APIFetch, "setCartHash", is not present, likely another plugin or some other code has removed this augmentation'
 		);
 	}
+	if (
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore -- this does exist because it's monkey patched in
+		// middleware/store-api-cart-token.
+		triggerFetch.setCartToken &&
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore -- this does exist because it's monkey patched in
+		// middleware/store-api-cart-token.
+		typeof triggerFetch?.setCartToken === 'function'
+	) {
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore -- this does exist because it's monkey patched in
+		// middleware/store-api-cart-token.
+		triggerFetch.setCartToken( headers );
+	} else {
+		// eslint-disable-next-line no-console
+		console.error(
+			'The monkey patched function on APIFetch, "setCartToken", is not present, likely another plugin or some other code has removed this augmentation'
+		);
+	}
 };
 
 /**

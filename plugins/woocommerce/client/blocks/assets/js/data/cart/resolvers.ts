@@ -38,6 +38,11 @@ export const getCartData =
 			// @ts-expect-error setCartHash exists but is not typed
 			apiFetch.setCartHash( response?.headers );
 		}
+		// @ts-expect-error setCartToken exists but is not typed
+		const setCartToken = apiFetch.setCartToken;
+		if ( typeof setCartToken === 'function' ) {
+			setCartToken( response?.headers );
+		}
 
 		try {
 			const cartData: CartResponse = await response.json();

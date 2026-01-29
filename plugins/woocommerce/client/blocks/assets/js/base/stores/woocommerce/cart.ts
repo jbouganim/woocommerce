@@ -87,6 +87,7 @@ export type Store = {
 		};
 		restUrl: string;
 		nonce: string;
+		cartToken?: string;
 		cart: Omit< Cart, 'items' > & {
 			items: ( OptimisticCartItem | CartItem )[];
 			totals: CartResponseTotals;
@@ -148,6 +149,28 @@ const generateInfoNotice = ( message: string ): Notice => ( {
 	type: 'notice',
 	dismissible: true,
 } );
+
+const getCartRequestHeaders = (
+	contentType: string | null = 'application/json'
+): Record< string, string > => {
+	const headers: Record< string, string > = {
+		Nonce: state.nonce,
+	};
+	if ( contentType ) {
+		headers[ 'Content-Type' ] = contentType;
+	}
+	if ( state.cartToken ) {
+		headers[ 'Cart-Token' ] = state.cartToken;
+	}
+	return headers;
+};
+
+const updateCartTokenFromHeaders = ( headers: Headers ): void => {
+	const cartToken = headers?.get( 'Cart-Token' );
+	if ( cartToken && cartToken !== state.cartToken ) {
+		state.cartToken = cartToken;
+	}
+};
 
 const getInfoNoticesFromCartUpdates = (
 	oldCart: Store[ 'state' ][ 'cart' ],
@@ -270,14 +293,11 @@ const { state, actions } = store< Store >(
 						`${ state.restUrl }wc/store/v1/cart/remove-item`,
 						{
 							method: 'POST',
-							cache: 'no-store',
-							headers: {
-								Nonce: state.nonce,
-								'Content-Type': 'application/json',
-							},
+							headers: getCartRequestHeaders(),
 							body: JSON.stringify( { key } ),
 						}
 					);
+					updateCartTokenFromHeaders( res.headers );
 
 					const json: Cart | ApiErrorResponse = yield res.json();
 
@@ -310,6 +330,7 @@ const { state, actions } = store< Store >(
 				{ id, key, quantity, variation }: ClientCartItem,
 				{ showCartUpdatesNotices = true }: CartUpdateOptions = {}
 			) {
+				const a11yModulePromise = import( '@wordpress/a11y' );
 				let item = state.cart.items.find( ( cartItem ) => {
 					if ( cartItem.type === 'variation' ) {
 						// If it's a variation, check that attributes match.
@@ -365,14 +386,11 @@ const { state, actions } = store< Store >(
 						`${ state.restUrl }wc/store/v1/cart/${ endpoint }`,
 						{
 							method: 'POST',
-							cache: 'no-store',
-							headers: {
-								Nonce: state.nonce,
-								'Content-Type': 'application/json',
-							},
+							headers: getCartRequestHeaders(),
 							body: JSON.stringify( updatedItem ),
 						}
 					);
+					updateCartTokenFromHeaders( res.headers );
 					const json: Cart = yield res.json();
 
 					// Checks if the response contains an error.
@@ -404,7 +422,8 @@ const { state, actions } = store< Store >(
 						'woocommerce'
 					) as WooCommerceConfig;
 					if ( messages?.addedToCartText ) {
-						wp?.a11y?.speak( messages.addedToCartText, 'polite' );
+						const { speak } = yield a11yModulePromise;
+						speak( messages.addedToCartText, 'polite' );
 					}
 
 					// Dispatches the event to sync the @wordpress/data store.
@@ -423,6 +442,7 @@ const { state, actions } = store< Store >(
 				items: ClientCartItem[],
 				{ showCartUpdatesNotices = true }: CartUpdateOptions = {}
 			) {
+				const a11yModulePromise = import( '@wordpress/a11y' );
 				const previousCart = JSON.stringify( state.cart );
 				const quantityChanges: QuantityChanges = {};
 
@@ -448,11 +468,7 @@ const { state, actions } = store< Store >(
 							return {
 								method: 'POST',
 								path: `/wc/store/v1/cart/update-item`,
-								cache: 'no-store',
-								headers: {
-									Nonce: state.nonce,
-									'Content-Type': 'application/json',
-								},
+								headers: getCartRequestHeaders(),
 								body: existingItem,
 							};
 						}
@@ -477,11 +493,7 @@ const { state, actions } = store< Store >(
 						return {
 							method: 'POST',
 							path: `/wc/store/v1/cart/add-item`,
-							cache: 'no-store',
-							headers: {
-								Nonce: state.nonce,
-								'Content-Type': 'application/json',
-							},
+							headers: getCartRequestHeaders(),
 							body: item,
 						};
 					} );
@@ -490,14 +502,11 @@ const { state, actions } = store< Store >(
 						`${ state.restUrl }wc/store/v1/batch`,
 						{
 							method: 'POST',
-							cache: 'no-store',
-							headers: {
-								Nonce: state.nonce,
-								'Content-Type': 'application/json',
-							},
+							headers: getCartRequestHeaders(),
 							body: JSON.stringify( { requests } ),
 						}
 					);
+					updateCartTokenFromHeaders( res.headers );
 
 					const json: BatchResponse = yield res.json();
 
@@ -562,10 +571,8 @@ const { state, actions } = store< Store >(
 							'woocommerce'
 						) as WooCommerceConfig;
 						if ( messages?.addedToCartText ) {
-							wp?.a11y?.speak(
-								messages.addedToCartText,
-								'polite'
-							);
+							const { speak } = yield a11yModulePromise;
+							speak( messages.addedToCartText, 'polite' );
 						}
 
 						// Dispatches the event to sync the @wordpress/data store.
@@ -606,9 +613,12 @@ const { state, actions } = store< Store >(
 						{
 							method: 'GET',
 							cache: 'no-store',
-							headers: { 'Content-Type': 'application/json' },
+							headers: {
+								'Content-Type': 'application/json',
+							},
 						}
 					);
+					updateCartTokenFromHeaders( res.headers );
 					const json: Cart = yield res.json();
 
 					// Checks if the response contains an error.
@@ -617,6 +627,7 @@ const { state, actions } = store< Store >(
 
 					// Updates the local cart.
 					state.cart = json;
+
 
 					// Resets the timeout.
 					refreshTimeout = 3000;

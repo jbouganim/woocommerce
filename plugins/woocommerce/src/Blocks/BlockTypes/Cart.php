@@ -274,7 +274,18 @@ class Cart extends AbstractBlock {
 
 		// Hydrate the following data depending on admin or frontend context.
 		if ( ! is_admin() && ! WC()->is_rest_api_request() ) {
-			$this->asset_data_registry->hydrate_api_request( '/wc/store/v1/cart' );
+			/**
+			 * Filters whether cart block data should be hydrated.
+			 *
+			 * @since 9.6.0
+			 *
+			 * @param bool  $should_hydrate Whether to hydrate cart data.
+			 * @param array $attributes     Block attributes.
+			 */
+			$should_hydrate = apply_filters( 'woocommerce_blocks_cart_should_hydrate', true, $attributes );
+			if ( $should_hydrate ) {
+				$this->asset_data_registry->hydrate_api_request( '/wc/store/v1/cart' );
+			}
 		}
 
 		/**

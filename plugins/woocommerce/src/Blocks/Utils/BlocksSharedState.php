@@ -102,14 +102,46 @@ trait BlocksSharedState {
 		if ( null === self::$blocks_shared_cart_state ) {
 			$cart_exists       = isset( WC()->cart );
 			$cart_has_contents = $cart_exists && ! WC()->cart->is_empty();
-			if ( $cart_exists ) {
-				$cart_response                  = Package::container()->get( Hydration::class )->get_rest_api_response_data( '/wc/store/v1/cart' );
-				self::$blocks_shared_cart_state = $cart_response['body'] ?? array();
-			} else {
-				self::$blocks_shared_cart_state = array();
+
+			$cart_response                  = Package::container()->get( Hydration::class )->get_rest_api_response_data( '/wc/store/v1/cart' );
+			self::$blocks_shared_cart_state = $cart_response['body'] ?? array();
+
+			/**
+			 * Filters whether the cart should be hydrated into interactivity state.
+			 *
+			 * @since 9.6.0
+			 *
+			 * @param bool $should_hydrate_cart Whether to hydrate cart data.
+			 */
+			$should_hydrate_cart = apply_filters( 'woocommerce_blocks_should_hydrate_cart', true );
+			if ( $cart_exists && ! $should_hydrate_cart ) {
+				self::$blocks_shared_cart_state['items'] = array();
+				self::$blocks_shared_cart_state['coupons'] = array();
+				self::$blocks_shared_cart_state['items_count'] = 0;
+				self::$blocks_shared_cart_state['items_weight'] = 0;
+				self::$blocks_shared_cart_state['needs_payment'] = false;
+				self::$blocks_shared_cart_state['needs_shipping'] = false;
+				self::$blocks_shared_cart_state['has_calculated_shipping'] = false;
+				self::$blocks_shared_cart_state['fees'] = array();
+				self::$blocks_shared_cart_state['totals'] = array();
+				self::$blocks_shared_cart_state['shipping_address'] = array();
+				self::$blocks_shared_cart_state['billing_address'] = array();
 			}
 
-			if ( $cart_has_contents ) {
+			/**
+			 * Filters whether cart contents should prevent caching.
+			 *
+			 * @since 9.6.0
+			 *
+			 * @param bool $should_prevent_cache Whether to send no-cache headers.
+			 * @param bool $cart_has_contents    Whether the cart has contents.
+			 */
+			$should_prevent_cache = apply_filters(
+				'woocommerce_blocks_should_prevent_cart_cache',
+				$cart_has_contents,
+				$cart_has_contents
+			);
+			if ( $cart_has_contents && $should_prevent_cache ) {
 				self::prevent_cache();
 			}
 

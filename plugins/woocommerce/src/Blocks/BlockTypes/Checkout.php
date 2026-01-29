@@ -550,9 +550,20 @@ class Checkout extends AbstractBlock {
 		}
 
 		if ( ! is_admin() && ! WC()->is_rest_api_request() ) {
-			$this->asset_data_registry->hydrate_api_request( '/wc/store/v1/cart' );
-			$this->asset_data_registry->hydrate_data_from_api_request( 'checkoutData', '/wc/store/v1/checkout' );
-			$this->hydrate_customer_payment_methods();
+			/**
+			 * Filters whether checkout block data should be hydrated.
+			 *
+			 * @since 9.6.0
+			 *
+			 * @param bool  $should_hydrate Whether to hydrate checkout data.
+			 * @param array $attributes     Block attributes.
+			 */
+			$should_hydrate = apply_filters( 'woocommerce_blocks_checkout_should_hydrate', true, $attributes );
+			if ( $should_hydrate ) {
+				$this->asset_data_registry->hydrate_api_request( '/wc/store/v1/cart' );
+				$this->asset_data_registry->hydrate_data_from_api_request( 'checkoutData', '/wc/store/v1/checkout' );
+				$this->hydrate_customer_payment_methods();
+			}
 		}
 
 		/**
