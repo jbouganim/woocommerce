@@ -13,6 +13,15 @@ import { STATUS } from './constants';
 import { CheckoutState } from './default-state';
 import { STORE_KEY as cartStoreKey } from '../cart/constants';
 
+export const getCheckoutData = ( state: CheckoutState ) => {
+	return {
+		orderId: state.orderId,
+		customerId: state.customerId,
+		orderNotes: state.orderNotes,
+		additionalFields: state.additionalFields,
+	};
+};
+
 export const getCustomerId = ( state: CheckoutState ) => {
 	return state.customerId;
 };
