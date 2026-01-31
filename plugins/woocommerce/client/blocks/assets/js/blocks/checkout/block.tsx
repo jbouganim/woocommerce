@@ -46,24 +46,48 @@ const Checkout = ( {
 	attributes: Attributes;
 	children: React.ReactChildren;
 } ): JSX.Element => {
-	const { hasOrder, customerId } = useSelect( ( select ) => {
-		const store = select( checkoutStore );
-		return {
-			hasOrder: store.hasOrder(),
-			customerId: store.getCustomerId(),
-		};
-	} );
+	const { hasOrder, customerId, checkoutIsResolving } = useSelect(
+		( select ) => {
+			const store = select( checkoutStore );
+			const coreDataStore = select( 'core/data' );
+			const hasStarted = coreDataStore.hasStartedResolution(
+				'wc/store/checkout',
+				'getCheckoutData',
+				[]
+			);
+			const hasFinished = coreDataStore.hasFinishedResolution(
+				'wc/store/checkout',
+				'getCheckoutData',
+				[]
+			);
+			return {
+				hasOrder: store.hasOrder(),
+				customerId: store.getCustomerId(),
+				// Only show loading if resolver has started but not finished
+				// If it never started, data was hydrated (not loading)
+				checkoutIsResolving: hasStarted && ! hasFinished,
+			};
+		}
+	);
 	const { cartItems, cartIsLoading } = useStoreCart();
 
 	const { showFormStepNumbers } = attributes;
 
-	if ( ! cartIsLoading && cartItems.length === 0 ) {
+	// Show nothing while cart or checkout are loading
+	if ( cartIsLoading || checkoutIsResolving ) {
+		return <></>;
+	}
+
+	// After loading, check for empty cart
+	if ( cartItems.length === 0 ) {
 		return <EmptyCart />;
 	}
 
-	if ( ! hasOrder ) {
-		return <CheckoutOrderError />;
-	}
+	// The checkout form can work without a pre-existing order (it will be
+	// created when the user interacts with the form). Only show error if
+	// there's an actual error state from the checkout store.
+	// Note: We no longer check hasOrder here to support CDN-cached pages
+	// where no server-side draft order exists initially.
 
 	/**
 	 * If checkout requires an account (guest checkout is turned off), render
