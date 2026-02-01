@@ -71,4 +71,4 @@ if ( class_exists( \Automattic\Jetpack\Connection\Rest_Authentication::class ) )
 add_filter( 'woocommerce_blocks_should_hydrate_cart', '__return_false' );
 add_filter( 'woocommerce_blocks_cart_should_hydrate', '__return_false' );
 add_filter( 'woocommerce_blocks_checkout_should_hydrate', '__return_false' );
-//add_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
+add_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
