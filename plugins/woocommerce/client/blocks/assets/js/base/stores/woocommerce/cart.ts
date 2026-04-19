@@ -236,6 +236,42 @@ function emitSyncEvent( {
 }
 
 /**
+ * Tracks the Cart-Hash header from the most recent successful batch response
+ * so the `commit` callback — which only receives server state — can persist
+ * the matching hash alongside the cart data in localStorage.
+ */
+let lastServerCartHash: string | null = null;
+
+/**
+ * Persist the canonical cart + hash to localStorage so the next page load can
+ * show an instant view of the last-known cart state (mini cart count/total,
+ * product button "X in cart" label, etc.) before the initial Store API GET
+ * resolves. Mirrors the Redux `persistence-layer` behavior for the IAPI path,
+ * which otherwise leaves `storeApiCartData` stale when the user mutates the
+ * cart from an IAPI-only surface (shop page, product page, etc.).
+ *
+ * Best-effort: private mode Safari, quota, and disabled storage all throw.
+ * Swallow silently — a stale read is worse than no read, but losing
+ * persistence for one session is the right failure mode.
+ */
+const writeCartToLocalStorage = (
+	cart: Cart,
+	cartHash?: string | null
+): void => {
+	try {
+		window.localStorage?.setItem(
+			'storeApiCartData',
+			JSON.stringify( cart )
+		);
+		if ( cartHash ) {
+			window.localStorage?.setItem( 'storeApiCartHash', cartHash );
+		}
+	} catch {
+		// Intentionally empty — persistence is best-effort.
+	}
+};
+
+/**
  * Cart request queue singleton
  *
  * Lazily initialized on first use since state isn't available at module load.
@@ -266,11 +302,15 @@ async function sendCartRequest(
 			},
 			commit: ( serverState ) => {
 				stateRef.cart = serverState;
+				writeCartToLocalStorage( serverState, lastServerCartHash );
 			},
 			fetchHandler: async ( ...args ) => {
 				const response = await fetch( ...args );
 				stateRef.nonce =
 					response.headers.get( 'Nonce' ) || stateRef.nonce;
+				lastServerCartHash =
+					response.headers.get( 'Cart-Hash' ) ||
+					lastServerCartHash;
 				return response;
 			},
 		} );
@@ -282,8 +322,51 @@ async function sendCartRequest(
 const universalLock =
 	'I acknowledge that using a private store means my plugin will inevitably break on the next store release.';
 
+/**
+ * Read the last-known cart from localStorage. Used to seed `state.cart` on
+ * page load so CDN-cached pages can render the mini cart badge, subtotal,
+ * and "X in cart" product button labels instantly — before the initial
+ * GET /wc/store/v1/cart resolves. Returns null on any failure so callers
+ * can fall through to the server-seeded (possibly empty) schema.
+ */
+const readCartFromLocalStorage = (): Store[ 'state' ][ 'cart' ] | null => {
+	try {
+		const raw = window.localStorage?.getItem( 'storeApiCartData' );
+		if ( ! raw ) {
+			return null;
+		}
+		const parsed = JSON.parse( raw ) as Store[ 'state' ][ 'cart' ];
+		// Basic shape check — refuse malformed data rather than crash getters.
+		if (
+			! parsed ||
+			typeof parsed !== 'object' ||
+			! Array.isArray( parsed.items )
+		) {
+			return null;
+		}
+		return parsed;
+	} catch {
+		return null;
+	}
+};
+
 // Todo: export this store once the store is public.
 const { state } = store< Store >( 'woocommerce', {}, { lock: universalLock } );
+
+// Seed `state.cart` from localStorage when the server did not hydrate cart
+// contents (CDN-cached page: `should_hydrate` is false, PHP emits an empty
+// cart schema). The mini cart badge, subtotal, and ProductButton "X in cart"
+// label all derive from `state.cart`, so this one-shot seed makes them paint
+// with the last-known values on first render. `refreshCartItems` will then
+// reconcile against the server; `writeCartToLocalStorage` keeps the snapshot
+// authoritative after every mutation.
+if ( state.cart && state.cart.items.length === 0 ) {
+	const cachedCart = readCartFromLocalStorage();
+	if ( cachedCart && cachedCart.items.length > 0 ) {
+		state.cart = cachedCart;
+	}
+}
+
 const { actions } = store< Store >(
 	'woocommerce',
 	{
@@ -718,6 +801,13 @@ const { actions } = store< Store >(
 
 					// Updates the local cart.
 					state.cart = json;
+
+					// Persist canonical cart + hash so the next page load can
+					// render an instant view before the initial GET resolves.
+					writeCartToLocalStorage(
+						json,
+						res.headers.get( 'Cart-Hash' )
+					);
 
 					// Resets the timeout.
 					refreshTimeout = 3000;
