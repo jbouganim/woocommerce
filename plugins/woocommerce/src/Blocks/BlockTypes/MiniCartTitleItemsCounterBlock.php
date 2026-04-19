@@ -2,6 +2,7 @@
 namespace Automattic\WooCommerce\Blocks\BlockTypes;
 
 use Automattic\WooCommerce\Admin\Features\Features;
+use Automattic\WooCommerce\Blocks\Utils\BlocksSharedState;
 
 /**
  * MiniCartTitleItemsCounterBlock class.
@@ -35,8 +36,10 @@ class MiniCartTitleItemsCounterBlock extends AbstractInnerBlock {
 	 * @return string Rendered block type output.
 	 */
 	protected function render_experimental_iapi_title_label_block() {
-		$cart            = $this->get_cart_instance();
-		$cart_item_count = $cart ? $cart->get_cart_contents_count() : 0;
+		$cart           = $this->get_cart_instance();
+		$should_hydrate = BlocksSharedState::should_hydrate( $this->get_full_block_name() );
+
+		$cart_item_count = ( $should_hydrate && $cart ) ? $cart->get_cart_contents_count() : 0;
 
 		// The following translation is a temporary workaround. It will be
 		// reverted to the previous form `(%d items)` as soon as the

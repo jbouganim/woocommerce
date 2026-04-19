@@ -315,6 +315,19 @@ class FeaturesController {
 				'disable_ui'                   => true,
 				'default_plugin_compatibility' => FeaturePluginCompatibility::COMPATIBLE,
 			),
+			'cdn_caching'                        => array(
+				'name'                         => __( 'CDN Caching for Cart & Checkout', 'woocommerce' ),
+				'description'                  => sprintf(
+					/* translators: %s is the URL to the documentation */
+					__( 'Enable CDN caching for cart and checkout pages. Requires: (1) Mini-cart block in header/site, (2) WooCommerce Blocks-based cart/checkout, (3) CDN with edge caching configured. Cart-Token authentication replaces nonce-based auth when enabled. <a href="%s" target="_blank">Learn more</a>', 'woocommerce' ),
+					'https://developer.woocommerce.com/docs/cart-checkout-blocks/cdn-caching/'
+				),
+				'is_experimental'              => true,
+				'enabled_by_default'           => false,
+				'skip_compatibility_checks'    => true,
+				'default_plugin_compatibility' => FeaturePluginCompatibility::COMPATIBLE,
+				'option_key'                   => 'woocommerce_blocks_enable_cdn_caching',
+			),
 			'rate_limit_checkout'                => array(
 				'name'                         => __( 'Rate limit Checkout', 'woocommerce' ),
 				'description'                  => sprintf(

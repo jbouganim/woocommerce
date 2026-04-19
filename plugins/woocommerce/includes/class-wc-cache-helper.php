@@ -7,6 +7,7 @@
 
 use Automattic\WooCommerce\Caching\CacheNameSpaceTrait;
 use Automattic\WooCommerce\Enums\DefaultCustomerAddress;
+use Automattic\WooCommerce\Blocks\Utils\BlocksSharedState;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -53,6 +54,10 @@ class WC_Cache_Helper {
 		$page_ids = array_filter( array( wc_get_page_id( 'cart' ), wc_get_page_id( 'checkout' ), wc_get_page_id( 'myaccount' ) ) );
 
 		if ( ! is_page( $page_ids ) ) {
+			return $headers;
+		}
+
+		if ( ! BlocksSharedState::should_hydrate() ) {
 			return $headers;
 		}
 

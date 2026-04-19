@@ -125,6 +125,12 @@ final class SessionHandler extends WC_Session {
 			return $default_value;
 		}
 
+		// Try the object cache first to avoid a DB round trip on cached pages.
+		$cached = wp_cache_get( $this->get_cache_prefix() . $customer_id, \WC_SESSION_CACHE_GROUP );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		$value = $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT session_value FROM %i WHERE session_key = %s',
@@ -138,6 +144,15 @@ final class SessionHandler extends WC_Session {
 		}
 
 		return maybe_unserialize( $value );
+	}
+
+	/**
+	 * Gets a cache prefix. This is used in session names so the entire cache can be invalidated with 1 function call.
+	 *
+	 * @return string
+	 */
+	private function get_cache_prefix() {
+		return \WC_Cache_Helper::get_cache_prefix( \WC_SESSION_CACHE_GROUP );
 	}
 
 	/**
@@ -172,6 +187,7 @@ final class SessionHandler extends WC_Session {
 			return;
 		}
 		$GLOBALS['wpdb']->delete( $this->table, array( 'session_key' => $customer_id ) );
+		wp_cache_delete( $this->get_cache_prefix() . $customer_id, \WC_SESSION_CACHE_GROUP );
 	}
 
 	/**
@@ -193,6 +209,10 @@ final class SessionHandler extends WC_Session {
 					$this->session_expiration
 				)
 			);
+
+			// Mirror the write into the object cache so subsequent reads can skip the DB.
+			$cache_duration = $this->session_expiration - time();
+			wp_cache_set( $this->get_cache_prefix() . $this->get_customer_id(), $this->_data, \WC_SESSION_CACHE_GROUP, $cache_duration );
 
 			$this->_dirty = false;
 		}

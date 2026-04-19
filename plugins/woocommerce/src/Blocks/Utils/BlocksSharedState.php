@@ -55,6 +55,58 @@ class BlocksSharedState {
 	}
 
 	/**
+	 * Whether WooCommerce should hydrate server-rendered output with per-user
+	 * data. Returns false when the output should remain CDN-cacheable (no
+	 * personalized data baked into HTML, IAPI state, or JSON payloads).
+	 *
+	 * This is the single source of truth for CDN-caching-aware hydration
+	 * decisions across block rendering, IAPI state writes, and cache-control
+	 * headers. Third-party blocks that hydrate per-user data should route
+	 * through this method and emit neutral defaults when it returns false,
+	 * relying on client-side rehydration via the Store API to populate real
+	 * values after page load.
+	 *
+	 * Example:
+	 *
+	 *     $should_hydrate = BlocksSharedState::should_hydrate( 'acme/shipping-progress' );
+	 *     $count          = $should_hydrate ? WC()->cart->get_cart_contents_count() : 0;
+	 *     wp_interactivity_state( 'acme/shipping-progress', array( 'itemCount' => $count ) );
+	 *
+	 * @since 10.8.0
+	 *
+	 * @param string $namespace Optional. Block or IAPI store namespace making the
+	 *                          hydration decision (e.g. 'woocommerce/mini-cart').
+	 *                          Passed to the `woocommerce_blocks_should_hydrate`
+	 *                          filter so subscribers can make fine-grained
+	 *                          decisions per call site.
+	 * @return bool True to hydrate per-user data. Defaults to true unless the
+	 *              `cdn_caching` experimental feature is enabled.
+	 */
+	public static function should_hydrate( string $namespace = '' ): bool {
+		$default = ! ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' )
+			&& \Automattic\WooCommerce\Utilities\FeaturesUtil::feature_is_enabled( 'cdn_caching' ) );
+
+		/**
+		 * Filters whether server-rendered WooCommerce output should hydrate
+		 * with per-user data.
+		 *
+		 * Subscribers can return false to suppress personalized data (making
+		 * the response CDN-cacheable) or true to keep it. The `$namespace`
+		 * argument allows fine-grained decisions — e.g. keep personalization
+		 * on a specific block only.
+		 *
+		 * @since 10.8.0
+		 *
+		 * @param bool   $default   Default value. False when the `cdn_caching`
+		 *                          experimental feature is enabled, true otherwise.
+		 * @param string $namespace Block or IAPI store namespace making the
+		 *                          hydration decision.
+		 */
+		$should_hydrate = apply_filters( 'woocommerce_blocks_should_hydrate', $default, $namespace );
+		return $should_hydrate;
+	}
+
+	/**
 	 * Check that the consent statement was passed.
 	 *
 	 * @param string $consent_statement The consent statement string.
@@ -102,14 +154,17 @@ class BlocksSharedState {
 		if ( null === self::$blocks_shared_cart_state ) {
 			$cart_exists       = isset( WC()->cart );
 			$cart_has_contents = $cart_exists && ! WC()->cart->is_empty();
-			if ( $cart_exists ) {
+
+			$should_hydrate = self::should_hydrate( self::$settings_namespace );
+
+			if ( $cart_exists && $should_hydrate ) {
 				$cart_response                  = Package::container()->get( Hydration::class )->get_rest_api_response_data( '/wc/store/v1/cart' );
 				self::$blocks_shared_cart_state = $cart_response['body'] ?? array();
 			} else {
-				self::$blocks_shared_cart_state = array();
+				self::$blocks_shared_cart_state = self::get_empty_cart_schema();
 			}
 
-			if ( $cart_has_contents ) {
+			if ( $cart_has_contents && $should_hydrate ) {
 				self::prevent_cache();
 			}
 
@@ -127,6 +182,61 @@ class BlocksSharedState {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Build an empty cart payload that mirrors the Store API cart response schema.
+	 *
+	 * Used when hydration is skipped (e.g. CDN caching is enabled) so IAPI
+	 * consumers reading `state.cart.items`, `state.cart.totals`, etc. still
+	 * receive the expected shape until the client-side Store API request
+	 * populates real values.
+	 *
+	 * @return array
+	 */
+	private static function get_empty_cart_schema(): array {
+		$currency = self::get_currency_data()['currency'];
+
+		$empty_totals = array(
+			'total_items'                 => '0',
+			'total_items_tax'             => '0',
+			'total_fees'                  => '0',
+			'total_fees_tax'              => '0',
+			'total_discount'              => '0',
+			'total_discount_tax'          => '0',
+			'total_shipping'              => '0',
+			'total_shipping_tax'          => '0',
+			'total_price'                 => '0',
+			'total_tax'                   => '0',
+			'tax_lines'                   => array(),
+			'currency_code'               => $currency['code'],
+			'currency_symbol'             => $currency['symbol'],
+			'currency_minor_unit'         => $currency['precision'],
+			'currency_decimal_separator'  => $currency['decimalSeparator'],
+			'currency_thousand_separator' => $currency['thousandSeparator'],
+			'currency_prefix'             => 'left' === $currency['symbolPosition'] ? $currency['symbol'] : '',
+			'currency_suffix'             => 'right' === $currency['symbolPosition'] ? $currency['symbol'] : '',
+		);
+
+		return array(
+			'items'                   => array(),
+			'coupons'                 => array(),
+			'fees'                    => array(),
+			'totals'                  => (object) $empty_totals,
+			'shipping_address'        => (object) array(),
+			'billing_address'         => (object) array(),
+			'needs_payment'           => false,
+			'needs_shipping'          => false,
+			'payment_requirements'    => array(),
+			'has_calculated_shipping' => false,
+			'shipping_rates'          => array(),
+			'items_count'             => 0,
+			'items_weight'            => 0,
+			'cross_sells'             => array(),
+			'errors'                  => array(),
+			'payment_methods'         => array(),
+			'extensions'              => (object) array(),
+		);
 	}
 
 	/**
